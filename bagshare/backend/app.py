@@ -3,23 +3,8 @@ import sqlite3
 conn = sqlite3.connect("bstest.db")
 import random
 from flask_cors import CORS
-
-app = Flask(__name__)
-
-@app.route("/api/check_out_bag", methods=["GET","POST"])
-def check_out_bag():
-    if request.method == "POST":
-        response = request.get_data(as_text=True)
-        print(response)
-        return ("true")
-
-
-
-if __name__ == "__main__":
-    app.run(debug=True)
-
-
 db_name = "bstest.db"
+
 
 def db_execute(str):
     conn = sqlite3.connect(db_name)
@@ -84,7 +69,7 @@ def check_in_db(db, check_with, check_with_val, check_for):
 class Bag:
     def __init__(self, id = None, new_bag = False, type = None, location = 0):
         if id != None:
-            assert len(str(id)) == 6
+            assert len(str(id)) == 8
             self.id = id
         elif id == None and new_bag == True:
             self.id = generate_id("BAGS")
@@ -187,26 +172,26 @@ def acc_id_exists(acc_id):
         print ("Account ID exists")
     return exists
 
-def account_info_valid(account):
-    return_val = True
-    try:
-        assert len(str(account.id)) == 8
-        assert account.acc_type in [0, 1, 2]
-        assert account.status in [0, 1]
-        assert account.payment_method != None
-        assert is_credit_card_valid(account.payment_method)
-        assert len(str(account.contact_info)) == 10
-        assert type(account.contact_info) == "int"
-    except(AssertionError):
-        print (AssertionError)
-        return_val = False
-    return return_val
+def get_id_from_phone (phone):
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT ID FROM ACCOUNTS WHERE contact_info = {phone}")
+    result = cursor.fetchone()
+    if result == None:
+        return None
+    if cursor.fetchone() == None:
+        id = result[0]
+    else:
+        print ("MORE THAN ONE ID ERROR")
+        return None
+    conn.close()
+    return id
 
 class Account:
     # acc type 0, 1, 2, 0 = customer 1 = store 2 = admin
     #method of contact
     def __init__(self, id = None, is_making_account = False, acc_type = 0, status = 0, 
-        payment_method = None, contact_info = None):
+        payment_method = None, contact_info = None, pin = None):
         if id != None:
             assert len(str(id)) == 8
             self.id = id
@@ -215,19 +200,16 @@ class Account:
         else: 
             print("ERROR: ID IS NONE, IF CREATING ACCOUNT PLEASE CREATE 8 DIGIT ID")     
         if is_making_account:
-            if not account_info_valid (id, acc_type, status, payment_method, contact_info):
-                print ("ACCOUNT INFO INVALID, CANNOT CREATE ACCOUNT")
-            else:
-                self.status = status
-                self.acc_type = acc_type
-                self.payment_method = payment_method
-                self.contact_info = contact_info
-                self.bags = ""
-                self.bags_list = []
-                db_execute(f"INSERT INTO ACCOUNTS VALUES \
-                        ({self.id}, {self.acc_type}, {self.status}, {self.payment_method}, \
-                                {self.contact_info}, {self.bags})")
-                print (f"New account created with id {self.id} and type {self.acc_type}")
+            self.status = status
+            self.acc_type = acc_type
+            self.payment_method = payment_method
+            self.contact_info = contact_info
+            self.bags = 0
+            self.pin = pin
+            db_execute(f"INSERT INTO ACCOUNTS VALUES \
+                    ({self.id}, {self.acc_type}, {self.status}, {self.payment_method}, \
+                            {self.contact_info}, {self.bags}, {self.pin})")
+            print (f"New account created with id {self.id} and type {self.acc_type}")
         else:
             print (f"Collecting info for Account {self.id} from DB")
             self.status = check_in_db("ACCOUNTS", "ID", self.id, "status")
@@ -235,29 +217,38 @@ class Account:
             self.payment_method = check_in_db("ACCOUNTS","ID", self.id, "payment_method")
             self.contact_info = check_in_db("ACCOUNTS","ID", self.id, "contact_info")
             self.bags = check_in_db("ACCOUNTS","ID", self.id, "bags")
-            bags_held = list(self.bags.split(" "))
-            for bag in bags_held:
-                int(bag)
-            self.bags_list = bags_held
+            self.pin = check_in_db("ACCOUNTS","ID", self.id, "pin")
 
-        def get_payment_method(self):
-            self.payment_method = check_in_db("ACCOUNTS","ID", self.id, "payment_method")
-            return self.payment_method
+    def get_payment_method(self):
+        self.payment_method = check_in_db("ACCOUNTS","ID", self.id, "payment_method")
+        return self.payment_method
 
-        def get_contact_info(self):
-            self.contact_info = check_in_db("ACCOUNTS","ID", self.id, "contact_info")
-            return self.contact_info
+    def get_contact_info(self):
+        self.contact_info = check_in_db("ACCOUNTS","ID", self.id, "contact_info")
+        return self.contact_info
 
-        def get_bags_held(self):
-            self.bags = check_in_db("ACCOUNTS","ID", self.id, "bags")
-            bags_held = list(self.bags.split(" "))
-            for bag in bags_held:
-                int(bag)
-            self.bags_list = bags_held
-            return self.bags_list
+    def get_bags_held(self):
+        self.bags = check_in_db("ACCOUNTS","ID", self.id, "bags")
+        bags_list = []
+        k = len(str(self.bags))/8
+        temp = self.bags
+        for i in range (k):
+            temp_bag = 0
+            temp_bag = temp % 10**8
+            temp -= temp_bag
+            temp /= 10**8
+            bags_list.append(temp_bag)
+        return bags_list
+            
+    def add_bag(self, new_bag):
+        bags = check_in_db("ACCOUNTS","ID", self.id, "bags")
+        self.bags = bags *(10**8) + new_bag
+        write_acc_to_db(self)
         
-        def check_status(self):
-            self.status = check_in_db("ACCOUNTS", "ID", self.id, "status")
+
+
+    def check_status(self):
+        self.status = check_in_db("ACCOUNTS", "ID", self.id, "status")
 
         
 
@@ -293,8 +284,9 @@ def write_acc_to_db (account):
     conn.commit()
     conn.execute(f"Update ACCOUNTS set contact_info = {account.contact_info} WHERE ID = {account.id}")
     conn.commit()
-    account.bags = " ".join(str(e) for e in account.bags_list)
     conn.execute(f"Update ACCOUNTS set bags = {account.bags} WHERE ID = {account.id}")
+    conn.commit()
+    conn.execute(f"Update ACCOUNTS set pin = {account.pin} WHERE ID = {account.id}")
     conn.commit()
     print("Account info written/updated to DB")
     conn.close()
@@ -363,16 +355,6 @@ def clean_all_bags(location_id, bag_type):
         bag_obj = Bag(bag, False, bag_type, location_id)
         bag_obj.done_cleaning()
 
-def create_new_account():
-    payment_method = None
-    while payment_method == None:
-        #prompt user for payment method
-        if is_credit_card_valid(payment_method):
-            break
-    new_acc = Account(None, True, 0, 0, payment_method, contact_info)
-    if account_info_valid(new_acc):
-        write_acc_to_db(new_acc)
-
 
 def acc_type_0_run():
     raise NotImplementedError
@@ -386,5 +368,60 @@ def location_bag_share_run(location_id):
     #end testing purposes
     print("Welcome to Bag Share!")
 
+
+
+app = Flask(__name__)
+
+@app.route("/api/check_out_bag", methods=["GET","POST"])
+def check_out_bag():
+    if request.method == "POST":
+        response = request.get_data(as_text=True)
+        idx_of_pn = response.find("phonenumber") + 14
+        pn = int(response[idx_of_pn:(idx_of_pn+10)])
+        idx_of_pin = response.find("password") + 11
+        pin = int(response[idx_of_pin:(idx_of_pin+4)])
+        idx_of_bag = response.find("bag") + 6
+        bag = int(response[idx_of_bag:(idx_of_bag+8)])
+        idx_of_status = response.find("first_time") + 12
+        status_str = response[idx_of_status:idx_of_status+5]
+        bag = Bag(bag, False, 0, 0)
+        if bag.status != 0:
+            return("bagnotavailable")
+        if "true" in status_str:
+            status = True
+        elif "false" in status_str:
+            status = False
+        if status:
+            credit_card_idx =  response.find("creditcardinfo") + 17
+            credit_card = int(response [credit_card_idx:credit_card_idx+16])
+            if get_id_from_phone(pn) != None:
+                return("statusincorrect")
+            account = Account(None, True, 0, 0, credit_card, pn, pin)
+        else:
+            if get_id_from_phone(pn) == None:
+                return("statusincorrect")
+            account = Account(get_id_from_phone(pn), False)
+            if pin != account.pin:
+                return("loginincorrect")
+        
+        bag.taken_out(get_id_from_phone(pn))
+        account.add_bag(new_bag = bag.id)
+        write_acc_to_db
+        write_bag_to_db
+
+        print(pn)
+        print(pin)
+        print(bag)
+        print(status)
+
+        return ("true")
+
+        
+
+
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
 
 

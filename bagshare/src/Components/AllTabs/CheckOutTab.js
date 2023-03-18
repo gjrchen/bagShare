@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import axios from "axios";
 import Button from '@mui/material/Button';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -24,7 +24,7 @@ const CheckOutTab = () => {
       password: data.get('pin'),
       creditcardinfo: data.get('credcard'),
       bag: data.get('bag'),
-      first_time: selected
+      first_time: selected,
     });
     
     if (info.phonenumber.length !== 10 || info.password.length !== 4 || info.bag.length !== 8){
@@ -32,6 +32,8 @@ const CheckOutTab = () => {
     } 
     else if (info.first_time && info.creditcardinfo.length !== 16){
       alert("NOT SUCCESSFUL! Credit Card length is not valid!")
+    } else if (info.first_time && (info.password.length !== 4 || data.get('reenterpin').length !== 4 )){
+      alert ("NOT SUCCESSFUL! Pin is not valid!")
     }
     else {
       axios.post("http://127.0.0.1:5000/api/check_out_bag", {info} )
@@ -40,6 +42,15 @@ const CheckOutTab = () => {
           alert ("Success!")
           setTimeout(window.location.reload(false), 2000)
           console.log("success")
+        }
+        else if (response.data === "statusincorrect"){
+          alert ("NOT SUCCESSFUL! Verify that you already have / do not yet have an account tied to this phone number.")
+        }
+        else if (response.data === "loginincorrect"){
+          alert ("NOT SUCCESSFUL! Your PIN may be incorrect.")
+        }
+        else if (response.data === "bagnotavailable"){
+          alert ("NOT SUCCESSFUL! The bag ID is not available. Reverify that you are entering the correct ID.")
         }
         else{
           alert("Bag Checkout was NOT SUCCESSFUL! Retry, verify that internet connection is available and if problem persists, contact BagShare Support.");
@@ -67,13 +78,15 @@ const CheckOutTab = () => {
           </Typography>
           <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
           <ToggleButton
+            color = "success"
             value="check"
+            fullWidth = "true"
             selected={selected}
              onChange={() => {
                 setSelected(!selected);
             }}
             >
-            This is my first time using bag share with this phone number!
+            Don't have an account yet? <br></br> Sign up in 3 steps by clicking here!
         
             </ToggleButton>
                 
@@ -82,7 +95,7 @@ const CheckOutTab = () => {
               required
               fullWidth
               id="phonenumber"
-              label="Phone Number"
+              label="Phone Number (No dashes, limited to 10 digits)"
               name="phonenumber"
               type = "number"
               autoFocus
@@ -94,7 +107,7 @@ const CheckOutTab = () => {
               required
               fullWidth
               name="pin"
-              label="Enter your Account PIN"
+              label="Enter your Account PIN (4 digits)"
               type="password"
               id="pin"
             />
@@ -108,7 +121,7 @@ const CheckOutTab = () => {
               required
               fullWidth
               name="pin"
-              label="Create an Account PIN"
+              label="Create an Account PIN (4 digits)"
               type="number"
               id="pin"
             />
