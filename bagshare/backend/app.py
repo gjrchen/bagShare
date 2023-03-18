@@ -6,15 +6,13 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 
-@app.route("/api/get_account_info", methods=["GET","POST"])
-def get_account_info():
+@app.route("/api/check_out_bag", methods=["GET","POST"])
+def check_out_bag():
     if request.method == "POST":
         response = request.get_data(as_text=True)
-        print(type(response))
-        return {"ooga":"gordon"}
-    else:
-        print ("nvm")
-        return {"ooga":"nvm"}
+        print(response)
+        return ("true")
+
 
 
 if __name__ == "__main__":

@@ -19,12 +19,32 @@ const CheckOutTab = () => {
   const handleSubmit = (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    console.log({
+    let info = ({
       phonenumber: data.get('phonenumber'),
-      password: data.get('password'),
+      password: data.get('pin'),
       creditcardinfo: data.get('credcard'),
-      bags: data.get('bag')
+      bag: data.get('bag'),
+      first_time: selected
     });
+    
+    if (info.phonenumber.length !== 10 || info.password.length !== 4 || info.bag.length !== 8){
+      alert ("NOT SUCCESSFUL! Please ensure all fields are filled correctly!")
+    } 
+    else if (info.first_time && info.creditcardinfo.length !== 16){
+      alert("NOT SUCCESSFUL! Credit Card length is not valid!")
+    }
+    else {
+      axios.post("http://127.0.0.1:5000/api/check_out_bag", {info} )
+      .then((response) => {
+        if (response.data === true){
+          alert ("Success!")
+          setTimeout(window.location.reload(false), 2000)
+          console.log("success")
+        }
+        else{
+          alert("Bag Checkout was NOT SUCCESSFUL! Retry, verify that internet connection is available and if problem persists, contact BagShare Support.");
+        }});
+    }  
   };
 
 
@@ -75,7 +95,7 @@ const CheckOutTab = () => {
               fullWidth
               name="pin"
               label="Enter your Account PIN"
-              type="number"
+              type="password"
               id="pin"
             />
             </div>
