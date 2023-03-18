@@ -1,0 +1,11 @@
+  const [PhoneNumber, setPhoneNumber] = useState("");
+
+    
+    const fetchData = () => {
+        axios.post("http://127.0.0.1:5000/api/get_account_info", {data})
+              .then((response) => setdata(response.data));
+      }
+    
+      useEffect(() => {
+         fetchData();
+      },[])

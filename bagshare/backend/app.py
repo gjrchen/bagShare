@@ -11,7 +11,7 @@ def get_account_info():
     if request.method == "POST":
         response = request.get_data(as_text=True)
         print(type(response))
-        return {"ooga":"BOOGA"}
+        return {"ooga":"gordon"}
     else:
         print ("nvm")
         return {"ooga":"nvm"}
