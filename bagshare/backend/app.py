@@ -6,8 +6,7 @@ from flask_cors import CORS
 db_name = "bstest.db"
 from twilio.rest import Client
 from datetime import datetime
-account_sid = 'ACa08340b8e4bdefc5b9e6f69b7339860c'
-auth_token = '848f573a09fd474867d647dfe4c1721c'
+
 from_number = '+15077057720'
 bag_price = 2
 service_fee = 0.05
@@ -459,7 +458,7 @@ def return_bag():
             to_number = '+1'+str(account.contact_info)
             now = datetime.now()
             date_time = now.strftime("%m/%d/%Y")
-            message = (f"from BagSHARE: \n\nThank you for using BagSHARE!  \n\nBag ID#{bag.id} RETURNED to location #121 (BCG Toronto Office). \n\nYou will now recieve your deposit as a refund. \n\nBags remaining under your account: {account.get_bags_held()}")
+            message = (f"from BagSHARE: \n\nThank you for using BagSHARE! \n\nBag ID#{bag.id} RETURNED to location #121 (BCG Toronto Office). \n\nYou will now recieve your deposit as a refund. \n\nBags remaining under your account: {account.get_bags_held()}")
             credit_last4 = int(str(account.payment_method)[-4:])
             message2 = (f"from BagSHARE: \n\nYour reciept from {date_time}: \n\nYou RETURNED Bag ID#{bag.id} \n\nCredit to: \nCredit Card ending in {credit_last4} \nBag Deposit: ${bag_price} (Will be returned in full) \n\nTOTAL: -${bag_price} (REFUND) ")
             client = Client(account_sid, auth_token)
@@ -467,6 +466,25 @@ def return_bag():
             message = client.messages.create(body=message2, from_=from_number, to=to_number)
             return("true")
 
+@app.route("/api/counter_update", methods=["GET"])
+def counter_update():
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+    cursor.execute("SELECT count FROM COUNTER")
+    number = cursor.fetchone()[0]
+    conn.close()
+    return(str(number))
+
+@app.route("/api/counter_increment", methods=["POST"])
+def counter_increment():
+    if request.method == "POST":
+        conn = sqlite3.connect(db_name)
+        cursor = conn.cursor()
+        cursor.execute("SELECT count FROM COUNTER")
+        number = int(cursor.fetchone()[0])
+        cursor.execute(f"UPDATE COUNTER SET count = {number+1}")
+        conn.close()
+        return("true")
 
 
 if __name__ == "__main__":
