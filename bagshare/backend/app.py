@@ -4,6 +4,13 @@ conn = sqlite3.connect("bstest.db")
 import random
 from flask_cors import CORS
 db_name = "bstest.db"
+from twilio.rest import Client
+from datetime import datetime
+account_sid = 'ACa08340b8e4bdefc5b9e6f69b7339860c'
+auth_token = '848f573a09fd474867d647dfe4c1721c'
+from_number = '+15077057720'
+bag_price = 2
+service_fee = 0.05
 
 
 def db_execute(str):
@@ -231,7 +238,7 @@ class Account:
         temp = self.bags
         for i in range (k):
             temp_bag = 0
-            temp_bag = temp % 10**8
+            temp_bag = int(temp % 10**8)
             temp -= temp_bag
             temp /= 10**8
             bags_list.append(temp_bag)
@@ -403,6 +410,15 @@ def check_out_bag():
         
         bag.taken_out(get_id_from_phone(pn))
         account.add_bag(new_bag = bag.id)
+        to_number = '+1'+str(pn)
+        message = (f"from BagSHARE: \n\nThank you for using BagSHARE!  \n\nBag ID#{bag.id} TAKEN OUT from location #121 (BCG Toronto Office). \n\nIt is due for return in 14 DAYS. \n\nBags under your account: {account.get_bags_held()}")
+        credit_last4 = int(str(account.payment_method)[-4:])
+        now = datetime.now()
+        date_time = now.strftime("%m/%d/%Y")
+        message2 = (f"from BagSHARE: \n\nYour reciept from {date_time}: \n\nYou CHECKED OUT Bag ID#{bag.id} \n\nBilled to: \nCredit Card ending in {credit_last4} \n\nService Charge: ${service_fee} \nBag Deposit: ${bag_price} \n(You will recieve this back when you return the bag on time!) \n\nTOTAL: ${service_fee+bag_price} \n\nYou have earned 5 WALMART rewards points from this transaction!" )
+        client = Client(account_sid, auth_token)
+        message = client.messages.create(body=message, from_=from_number, to=to_number)
+        message = client.messages.create(body=message2, from_=from_number, to=to_number)
         write_acc_to_db
         write_bag_to_db
 
@@ -440,6 +456,15 @@ def return_bag():
             bag.returned(location_id=121)
             write_acc_to_db(account)
             write_bag_to_db(bag)
+            to_number = '+1'+str(account.contact_info)
+            now = datetime.now()
+            date_time = now.strftime("%m/%d/%Y")
+            message = (f"from BagSHARE: \n\nThank you for using BagSHARE!  \n\nBag ID#{bag.id} RETURNED to location #121 (BCG Toronto Office). \n\nYou will now recieve your deposit as a refund. \n\nBags remaining under your account: {account.get_bags_held()}")
+            credit_last4 = int(str(account.payment_method)[-4:])
+            message2 = (f"from BagSHARE: \n\nYour reciept from {date_time}: \n\nYou RETURNED Bag ID#{bag.id} \n\nCredit to: \nCredit Card ending in {credit_last4} \nBag Deposit: ${bag_price} (Will be returned in full) \n\nTOTAL: -${bag_price} (REFUND) ")
+            client = Client(account_sid, auth_token)
+            message = client.messages.create(body=message, from_=from_number, to=to_number)
+            message = client.messages.create(body=message2, from_=from_number, to=to_number)
             return("true")
 
 
