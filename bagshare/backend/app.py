@@ -12,22 +12,9 @@ def db_execute(str):
     conn.commit()
     conn.close()
 
-def id_exists(id):
-    conn = sqlite3.connect(db_name)
-    ids = conn.execute("SELECT ID FROM BAGS")
-    exists = False
-    for row in ids:
-        if row[0] == id:
-            exists = True
-            break
-    conn.close()
-    if exists:
-        print ("id exists")
-    return exists
-
 def generate_id(type):
     if type == "BAGS":
-        len = 6
+        len = 8
     elif type == "ACCOUNTS":
         len = 8
     else:
@@ -53,16 +40,18 @@ def generate_id(type):
 
 def check_in_db(db, check_with, check_with_val, check_for):
     conn = sqlite3.connect(db_name)
-    thing = conn.execute (f"SELECT {check_for} FROM {db} WHERE {check_with} = {check_with_val}")
-    cnt = 0
-    for row in thing:
-        if cnt > 0:
-            print ("WARNING: MORE THAN ONE RESULT IN DB FOR SPECIFIED PARAMETERS")
-            break
-        return_val = row[0]
-        cnt += 1
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT {check_for} FROM {db} WHERE {check_with} = {check_with_val}")
+    result = cursor.fetchone()
+    if result == None:
+        return None
+    if cursor.fetchone() == None:
+        status = result[0]
+    else:
+        print ("MORE THAN ONE ID ERROR")
+        return None
     conn.close()
-    return return_val
+    return status
 
 
 #type 0 is for shopping bag, integer for other types
@@ -74,7 +63,7 @@ class Bag:
         elif id == None and new_bag == True:
             self.id = generate_id("BAGS")
         else: 
-            print("ERROR: ID IS NONE, IF CREATING BAG PLEASE CREATE 6 DIGIT ID")       
+            print("ERROR: ID IS NONE, IF CREATING BAG PLEASE CREATE 8 DIGIT ID")       
         if new_bag:
             self.status = 0
             self.account = 0
@@ -82,27 +71,21 @@ class Bag:
             self.days_out = 0
             self.current_location = location
             self.type = type
-            if id_exists(self.id):
-                print("ID is duplicate! Pick a new 6 digit bag ID")
-            else:
-                db_execute(f"INSERT INTO BAGS VALUES \
-                    ({self.id}, {self.status}, {self.account}, {self.uses}, {self.days_out}, {self.current_location}, {self.type})")
-                print (f"New bag created with id {self.id} and type {self.type}")
+            db_execute(f"INSERT INTO BAGS VALUES \
+                ({self.id}, {self.status}, {self.account}, {self.uses}, {self.days_out}, {self.current_location}, {self.type})")
+            print (f"New bag created with id {self.id} and type {self.type}")
 
-        elif id_exists(id):
+        else:
             #status will be an integer 0 , 1, 2, 3
             # 0 = free, 1 = in use, 2 = returned (needs cleaning), 3 being cleaned
             self.status = check_in_db("BAGS", "ID", self.id, "status")
             print (f"bag is status {self.status}")
-            if self.status == 1:
-                self.account = check_in_db("BAGS","ID", self.id, "account")
+            self.account = check_in_db("BAGS","ID", self.id, "account")
             self.uses = check_in_db("BAGS","ID", self.id, "uses")
             self.days_out = check_in_db("BAGS","ID", self.id, "days_out")
             self.current_location = check_in_db("BAGS","ID", self.id, "current_location")
             self.type = check_in_db ("BAGS","ID", self.id, "type")
-        
-        else: 
-            print("ID does not exist and you are not trying to create a new Bag!")
+    
 
     def taken_out(self, account_id):
         if self.status != 0:
@@ -172,6 +155,21 @@ def acc_id_exists(acc_id):
         print ("Account ID exists")
     return exists
 
+def check_bag_status (bag_id):
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT status FROM BAGS WHERE ID = {bag_id}")
+    result = cursor.fetchone()
+    if result == None:
+        return None
+    if cursor.fetchone() == None:
+        status = int(result[0])
+    else:
+        print ("MORE THAN ONE ID ERROR")
+        return None
+    conn.close()
+    return status
+
 def get_id_from_phone (phone):
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()
@@ -193,7 +191,6 @@ class Account:
     def __init__(self, id = None, is_making_account = False, acc_type = 0, status = 0, 
         payment_method = None, contact_info = None, pin = None):
         if id != None:
-            assert len(str(id)) == 8
             self.id = id
         elif id == None and is_making_account:
             self.id = generate_id("ACCOUNTS")
@@ -230,7 +227,7 @@ class Account:
     def get_bags_held(self):
         self.bags = check_in_db("ACCOUNTS","ID", self.id, "bags")
         bags_list = []
-        k = len(str(self.bags))/8
+        k = int(len(str(self.bags))/8)
         temp = self.bags
         for i in range (k):
             temp_bag = 0
@@ -416,8 +413,34 @@ def check_out_bag():
 
         return ("true")
 
-        
-
+@app.route("/api/return_bag", methods=["GET","POST"])
+def return_bag():
+    if request.method == "POST":      
+        response = request.get_data(as_text=True)
+        print (response)
+        idx_of_bag = response.find("bag") + 6
+        bag_id = int(response[idx_of_bag:idx_of_bag+8])
+        print(bag_id)
+        if check_bag_status(bag_id) == None:
+            return ("bagdoesntexist")
+        elif check_bag_status(bag_id) != 1:
+            return ("bagnotout")
+        else:
+            bag = Bag(bag_id, False)
+            account_id = bag.account
+            account = Account(account_id, False)
+            bags_list = account.get_bags_held()
+            bags_list.remove(bag_id)
+            current_bags_int = 0
+            num_bags = len(bags_list)
+            for i in range (num_bags):
+                current_bags_int *= (10**8)
+                current_bags_int += bags_list[i]
+            account.bags = current_bags_int
+            bag.returned(location_id=121)
+            write_acc_to_db(account)
+            write_bag_to_db(bag)
+            return("true")
 
 
 

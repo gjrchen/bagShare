@@ -32,7 +32,7 @@ const CheckOutTab = () => {
     } 
     else if (info.first_time && info.creditcardinfo.length !== 16){
       alert("NOT SUCCESSFUL! Credit Card length is not valid!")
-    } else if (info.first_time && (info.password.length !== 4 || data.get('reenterpin').length !== 4 )){
+    } else if (info.first_time && (info.password.length !== 4 )){
       alert ("NOT SUCCESSFUL! Pin is not valid!")
     }
     else {

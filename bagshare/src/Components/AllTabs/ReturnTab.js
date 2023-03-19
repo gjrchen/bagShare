@@ -9,18 +9,38 @@ import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 
+
 const ReturnTab = () => {
    
     const theme = createTheme();
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    console.log({
-      bagid: data.get('bagid'),
-    });
-  };
-
+    const handleSubmit = (event) => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        let bag = (
+          data.get('bagid')
+        );
+        if (bag.length !== 8){
+            alert ("RETURN UNSUCCESSFUL! Bag ID invalid length, should be 8. Retry...")
+        } else {
+            axios.post("http://127.0.0.1:5000/api/return_bag", {bag} )
+            .then((response) => {
+            if (response.data === true){
+            alert ("Success!")
+            setTimeout(window.location.reload(false), 2000)
+            console.log("success")
+            }
+            else if (response.data === "bagnotout"){
+            alert ("NOT SUCCESSFUL! This bag is not taken out. Ensure ID is correct.")
+            }
+            else if (response.data === "bagdoesntexist"){
+                alert ("NOT SUCCESSFUL! This bag ID does not exist. Ensure ID is correct.")
+                }
+            else{
+            alert("Bag Checkout was NOT SUCCESSFUL! Retry, verify that internet connection is available and if problem persists, contact BagShare Support.");
+            }});
+        }
+    }
 
   return (
     <div className = "ReturnTab">
@@ -72,9 +92,6 @@ const ReturnTab = () => {
     </ThemeProvider>
     </div>
   );
-
-    
-    
 
 
 };
