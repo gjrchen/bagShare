@@ -483,6 +483,7 @@ def counter_increment():
         cursor.execute("SELECT count FROM COUNTER")
         number = int(cursor.fetchone()[0])
         cursor.execute(f"UPDATE COUNTER SET count = {number+1}")
+        conn.commit()
         conn.close()
         return("true")
 
