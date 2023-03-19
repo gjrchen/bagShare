@@ -12,7 +12,18 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 
 const ReturnTab = () => {
    
-    const theme = createTheme();
+    const theme = createTheme({
+        palette:{
+          primary:{
+            main: '#00B050',
+          },
+          secondary:{
+            main:'#008D40',
+          }
+        }
+      }
+  
+      );
 
     const handleSubmit = (event) => {
         event.preventDefault();

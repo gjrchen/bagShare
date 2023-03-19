@@ -30,6 +30,7 @@ const CheckOutTab = () => {
   const handleSubmit = (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    axios.post("http://127.0.0.1:5000/api/counter_increment", "post" )
     let info = ({
       phonenumber: data.get('phonenumber'),
       password: data.get('pin'),
@@ -69,7 +70,7 @@ const CheckOutTab = () => {
     }  
   };
 
-  axios.post("http://127.0.0.1:5000/api/counter_increment", "post" )
+  
 
   return (
     <div className = "CheckOutTab">
